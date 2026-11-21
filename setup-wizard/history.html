@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/png" sizes="32x32" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAD/ElEQVR4Xu2VTWhcVRiG3/Odc+femUkyt5khndI21ZKftrSQ2EqTmUq1CFIoRRfRlSgUGpAmWSi6EDR1odiVdeFP0EXEKl1UEUFwZYtJRZpIQQUJVFulKPlrYlon4517Pjk3TpjUmLlz02VfuHDP4pz3+X7Od4C7uquIyrVlPupqTe+MuH1ZFP0A7lCEs93bN+yJfgbWAwD00sY9263EmVyr2xEVIlIG8u2ZD/tkdttBaoAETAYaogKoWjfm29Nn+in7aI7qE+/7k5hj71kq8ve1nlNWTRnItaU/OCGyj+WpPpEAYYILmNalb0Z+nb+Rb2081d3idtYKIsJuyLelhwdoU09e1sfdBxYhkhpjo8A7N6ZGrqE4e4ya8hd5YeInb7Fv5Mr0eNhzQ5Ug3555r482Pp6nesc9sAirzYOwGPcrBX0hc+DPeWC3iGOMb3Wz9JvCmhuFAmDGkU6RdEzkZXO/ezPkD1PYDw0uChTHBHpm0/CYX+Q2mr44MXMpDEgogLJU81LkxlzvzIAb48D+EtTY7xBOAR2jcXwyJfLCF5vCmBvV1IRGfteSOWISvLUB3NIIdhTU5hJEXIf1jXYLjPS9qcC8Uvq+LNi1cU7PYpb9N6D9y2FJQt2CXGv66UMydXrgSbsh2bsbSDkgHIWACx9fAJiG/GwC+vCXYX0RT7qB94oeYARAYmgv5NYmkDsHWqgHJZ2Zc69d0Yl3LyVfPbbjeir1cDMosQ8CW6DxNcTlHwPzgUfah87mnjhejWL+1JuicGuODURAwYOg81cRwxycuIZdFIiRghXTtipqVpJA5nv750TPjnvq+q1dmQa2usCchKDvcOK5T5E9+VI13//oj5dfgTJRj4/DSVI8XYr5LmtOSMGmytKXvowpEBhCEERvy83R4au67u/fFhLAL8GBb124dvyZg9uGcOipqpHfriADBmD0KOoE2U2WrRtLmhNCwBICRCRJ+yXyealXBENIAS6vjTqHZz6PEv3y1RYAj13HYiFbnNWEoi1tp+CzLXy2hNSKQVIIlkJD+ARifwmmEqJSc6+fDpbuCwOhShI04b5xeIPA/JG9uFmMFdWGLZCTPpTSkNqU4i9IZYFiEuR5oJIEOascb8zLxpX/a2n5FgwCenAcZpJ4QWMC4iQgdgGi+TCSrNAIH0lyYFsaiqn6ECtnYzWVQf93FJvSGA4D8q2LuChZaS/GScVQWoF8XR0gjKq+BQHIx5j86kFvxsyNuhhkQULadRAL3spBZqJaqwfKZanMTFWAf8UPnUcJCL4VKty2Dtt8ZdX8GN1phXoL1pIZqeuZA3ckA2a2R8mM2bduADNOTRaiAJh9kchXU/l1Sz3fXxWm8jX8B9RzZw8qY9OgAAAAAElFTkSuQmCC">
+<link rel="apple-touch-icon" href="data:image/png;base64,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">
+<title>Version history</title>
+<style>
+:root{--bg:#f7f5f0;--ink:#14213d;--accent:#0f766e;--line:#d9d4c7;--card:#fff;--warn:#b45309;--soft:#e6f2f0;--muted:#4b5563}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 Inter,system-ui,sans-serif}
+main{max-width:760px;margin:0 auto;padding:24px 16px 64px}
+h1{font-family:Newsreader,Georgia,serif;font-size:2rem;margin:.2em 0}
+a{color:var(--accent)}
+.sub{color:var(--muted)}
+.pick{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 20px;margin:16px 0}
+.pick label{font-weight:600;display:block;margin-bottom:6px}
+select{font:inherit;padding:9px 10px;border:1px solid var(--line);border-radius:8px;width:100%}
+.verdict{border-radius:10px;padding:14px 18px;margin:16px 0;font-weight:600}
+.verdict.ok{background:var(--soft)}
+.verdict.go{background:#fef3c7;color:#78350f}
+.tl{position:relative;margin:16px 0 0 10px;padding-left:22px;border-left:3px solid var(--line)}
+.v{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:16px;position:relative}
+.v:before{content:"";position:absolute;left:-33px;top:22px;width:13px;height:13px;border-radius:50%;background:var(--accent);border:3px solid var(--bg)}
+.v.mine:before{background:var(--warn)}
+.v h2{margin:0;font-family:Newsreader,Georgia,serif;font-size:1.25rem}
+.date{font-size:.85rem;color:var(--muted)}
+.badge{display:inline-block;font-size:.75rem;font-weight:700;padding:2px 9px;border-radius:99px;margin-left:6px;vertical-align:middle;background:var(--soft);color:var(--accent)}
+.badge.database,.badge.redeploy,.badge.settings{background:#fef3c7;color:#78350f}
+.chips{margin:10px 0;display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:.82rem;border:1px solid var(--line);border-radius:6px;padding:2px 8px;background:#fbfaf7}
+.chip b{margin-right:4px}
+.chip.Added b{color:#166534}.chip.Fixed b{color:#b91c1c}.chip.Changed b{color:#1d4ed8}
+details.steps{margin-top:8px}
+details.rc{margin-top:10px;border-top:1px solid var(--line);padding-top:8px}
+details.rc summary{cursor:pointer;font-weight:600}
+.rc table{width:100%;border-collapse:collapse;font-size:.88rem;margin-top:6px}
+.rc td{padding:6px;border-bottom:1px solid var(--line);vertical-align:top}
+.rc td:first-child{font-weight:600;width:30%}
+.res{display:inline-block;font-weight:700;font-size:.75rem;padding:2px 8px;border-radius:99px;white-space:nowrap}
+.res.pass{background:#dcfce7;color:#166534}.res.fail{background:#fee2e2;color:#b91c1c}.res.partial,.res.untested{background:#fef3c7;color:#92400e}
+details.steps summary{cursor:pointer;font-weight:600}
+.step{margin:12px 0}
+.step .t{font-weight:600}
+.copy{position:relative;background:#0f172a;color:#e2e8f0;border-radius:8px;padding:12px 84px 12px 12px;margin:8px 0;font:.85rem/1.5 ui-monospace,Menlo,monospace;white-space:pre-wrap;word-break:break-all}
+.copy button{position:absolute;top:8px;right:8px;padding:4px 10px;font-size:.8rem}
+button{font:inherit;padding:8px 14px;border-radius:8px;border:1px solid var(--ink);background:var(--card);cursor:pointer}
+.how{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 18px;margin:16px 0}
+.toggle{margin:24px 0 8px}
+@media(max-width:600px){button,summary,select{min-height:44px}}
+</style>
+</head>
+<body>
+<main>
+<p><a href="./">&larr; Back to the setup wizard</a></p>
+<h1 id="title">Version history</h1>
+<p class="sub" id="cur"></p>
+<div class="pick"><label for="sel">Which version does your client have?</label>
+<select id="sel"></select></div>
+<div id="out"></div>
+<div class="toggle"><button id="allBtn">Show all versions</button></div>
+<div id="all" hidden></div>
+</main>
+<script>
+(function(){
+  var D,vars=[],vals={};
+  function esc(t){var d=document.createElement('div');d.textContent=t==null?'':String(t);return d.innerHTML;}
+  function store(){try{return window.localStorage;}catch(e){return null;}}
+  function getSel(){try{var s=store();return s&&s.getItem('history:'+location.pathname);}catch(e){return null;}}
+  function setSel(v){try{var s=store();if(s)s.setItem('history:'+location.pathname,v);}catch(e){}}
+  function loadVals(){try{var s=store(),o=JSON.parse((s&&s.getItem('wizard:'+location.pathname.replace(/history(\.html)?$/,'')))||'null');vals=(o&&o.vals)||{};}catch(e){vals={};}}
+  function val(k,dp){
+    if(vals[k])return vals[k];
+    for(var i=0;i<vars.length;i++)if(vars[i].key===k&&vars[i].derive&&!(dp>3)){
+      var miss=false,o=String(vars[i].derive).replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g,function(m,x){var v=val(x,(dp||0)+1);if(!v)miss=true;return v;});
+      return miss?'':o;
+    }
+    return '';
+  }
+  function sub(t){return String(t||'').replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g,function(m,k){return val(k)||('<'+k+'>');});}
+  var LABEL={none:'Nothing to do',redeploy:'Redeploy',database:'Database update',settings:'Change a setting'};
+  var RANK={none:0,settings:1,redeploy:2,database:3};
+  function card(v,mine){
+    var h='<div class="v'+(mine?' mine':'')+'"><h2>'+esc(v.title)+'<span class="badge '+esc(v.upgrade_type)+'">'+esc(LABEL[v.upgrade_type]||v.upgrade_type)+'</span></h2><div class="date">'+esc(v.date)+' · version '+esc(v.id)+'</div><p>'+esc(v.summary)+'</p>';
+    h+='<div class="chips">'+(v.changes||[]).map(function(c){return '<span class="chip '+esc(c.kind)+'"><b>'+esc(c.kind)+'</b>'+esc(c.text)+'</span>';}).join('')+'</div>';
+    if((v.upgrade_steps||[]).length){
+      h+='<details class="steps" open><summary>Steps for this version ('+v.upgrade_steps.length+')</summary>'+v.upgrade_steps.map(function(s,i){
+        return '<div class="step"><div class="t">'+(i+1)+'. '+esc(s.title)+'</div><div>'+esc(s.text)+'</div>'+(s.copy?'<div class="copy">'+esc(sub(s.copy))+'<button data-c="'+encodeURIComponent(sub(s.copy))+'">Copy</button></div>':'')+'</div>';}).join('')+'</details>';
+    }
+    if(v.report_card){var rc=v.report_card;
+      h+='<details class="rc"><summary>Test report card: '+esc(rc.summary)+'</summary><div class="date">Tested '+esc(rc.tested)+' on '+esc(rc.environment)+'</div><table>'+(rc.results||[]).map(function(r){
+        return '<tr><td>'+esc(r.area)+'</td><td><span class="res '+esc(r.result)+'">'+esc(r.result)+'</span></td><td>'+esc(r.note)+'</td></tr>';}).join('')+'</table></details>';
+    }
+    return h+'</div>';
+  }
+  function wire(root){
+    Array.prototype.forEach.call(root.querySelectorAll('button[data-c]'),function(b){
+      b.onclick=function(){try{navigator.clipboard.writeText(decodeURIComponent(b.getAttribute('data-c')));b.textContent='Copied';setTimeout(function(){b.textContent='Copy';},1200);}catch(e){}};
+    });
+  }
+  function show(id){
+    var out=document.getElementById('out'),vs=D.versions,idx=-1,i;
+    for(i=0;i<vs.length;i++)if(vs[i].id===id)idx=i;
+    if(id==='?'||idx<0){
+      out.innerHTML='<div class="verdict go"><b>Not sure which version?</b><ul><li>Send the client the newest steps below.</li><li>To find it: ask for the newest file name in the <b>supabase/migrations</b> folder. That folder holds the database updates.</li><li>Match its date to the list below.</li></ul></div><div class="tl">'+vs.map(function(v){return card(v);}).join('')+'</div>';
+      wire(out);return;
+    }
+    if(idx===0){out.innerHTML='<div class="verdict ok">This client has the newest version. Nothing to do.</div>';return;}
+    var todo=vs.slice(0,idx).reverse(),worst='none';
+    todo.forEach(function(v){if(RANK[v.upgrade_type]>RANK[worst])worst=v.upgrade_type;});
+    out.innerHTML='<div class="verdict go">'+todo.length+' update'+(todo.length>1?'s':'')+' to reach '+esc(D.current)+'. Biggest change: '+esc(LABEL[worst]||worst)+'. Do them in this order, oldest first.</div><div class="tl">'+todo.map(function(v){return card(v,false);}).join('')+'</div>';
+    wire(out);
+  }
+  function init(){
+    document.getElementById('title').textContent=D.product+' version history';
+    document.getElementById('cur').textContent='Newest version: '+D.current;
+    var sel=document.getElementById('sel');
+    sel.innerHTML='<option value="?">Not sure</option>'+D.versions.map(function(v,i){return '<option value="'+esc(v.id)+'">'+esc(v.id)+' - '+esc(v.title)+(i===0?' (newest)':'')+'</option>';}).join('');
+    var s=getSel();if(s&&sel.querySelector('option[value="'+s+'"]'))sel.value=s;else sel.value='?';
+    sel.onchange=function(){setSel(sel.value);show(sel.value);};
+    show(sel.value);
+    var all=document.getElementById('all'),btn=document.getElementById('allBtn');
+    all.innerHTML='<div class="tl">'+D.versions.map(function(v){return card(v);}).join('')+'</div>';wire(all);
+    btn.onclick=function(){all.hidden=!all.hidden;btn.textContent=all.hidden?'Show all versions':'Hide all versions';};
+  }
+  loadVals();
+  Promise.all([fetch('versions.json').then(function(r){return r.json();}),fetch('steps.json').then(function(r){return r.json();}).catch(function(){return {};})])
+   .then(function(r){D=r[0];vars=(r[1]&&r[1].variables)||[];init();})
+   .catch(function(){document.getElementById('title').textContent='Could not load versions.json';});
+})();
+</script>
+</body>
+</html>

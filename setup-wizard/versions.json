@@ -1,0 +1,120 @@
+{
+ "product": "Insight Forge",
+ "current": "2026-11-20",
+ "how_to_find": "Ask the client for the newest file name in the supabase/migrations folder of their repo. Match its date to the list below. If they have no such folder, choose Not sure and send them the newest version steps.",
+ "versions": [
+  {
+   "id": "2026-11-20",
+   "date": "2026-11-20",
+   "title": "Faster install",
+   "summary": "Every sign-in, token and key now happens in one sitting. DNS is gone. Each step shows a time estimate. The first check uses 3 drafts, and the first 12 posts start after the install.",
+   "upgrade_type": "none",
+   "changes": [
+    {
+     "kind": "Removed",
+     "text": "DNS and the alert-route choice. Alerts use Resend's test sender."
+    },
+    {
+     "kind": "Changed",
+     "text": "Token and key steps moved into Part 2, each stored right after it is made"
+    },
+    {
+     "kind": "Changed",
+     "text": "Brand step uses the research values instead of repeating the logo hunt"
+    },
+    {
+     "kind": "Changed",
+     "text": "Launch check starts 3 drafts. A later step starts the first 12 posts"
+    },
+    {
+     "kind": "Added",
+     "text": "Time estimate and direct link on every step"
+    },
+    {
+     "kind": "Added",
+     "text": "Newsletter intake: a Gmail label script (loom-queue) is now an install step, with a test at the health check. Before this, no installed app could receive newsletters."
+    },
+    {
+     "kind": "Added",
+     "text": "Daily publish sweep job (publish-approved-sweep-daily). Prismm had it; new installs did not."
+    }
+   ],
+   "upgrade_steps": [], "report_card": {"tested": "2026-11-20", "environment": "test install insightforge-test (ReRev Labs), Windows 11", "summary": "14 pass, 6 partial, 0 fail, 0 untested", "results": [{"area": "Keys file and preflight", "result": "pass", "note": "0 FAIL. Preflight does not check GMAIL_SCRIPT_URL or that the Resend account email equals the app login."}, {"area": "App and worker repos (steps 6, 7)", "result": "pass", "note": "Both made with Use this template. The worker repo name is now a setting (default insightforge-worker)."}, {"area": "Tokens, secrets and login (steps 9-15)", "result": "pass", "note": "All secrets stored. One login, sign-up off, Site URL set."}, {"area": "Database build (step 19)", "result": "partial", "note": "On Windows, Device Guard blocked the Supabase CLI. Built through the Supabase API instead (63 migrations). Step 17 now keeps install scripts on."}, {"area": "Server functions (step 21)", "result": "partial", "note": "Same CLI block; deployed through the API. A change to a shared file must redeploy every function that uses it."}, {"area": "App build and login (step 23)", "result": "pass", "note": "Run workflow builds the template copy. The app address comes from the repo name. Login works; sign-up is refused."}, {"area": "Brand (step 24)", "result": "pass", "note": "Find logo found the real logo. Outfit needs the custom font entry."}, {"area": "Connect (step 25)", "result": "pass", "note": "Green in 52 s. Worker and Supabase secrets stored."}, {"area": "LinkedIn connect (step 26)", "result": "pass", "note": "App and Zernio agree on account, profile and company page. Use a Zernio account that only this business uses."}, {"area": "First 3 drafts (step 27)", "result": "pass", "note": "3 drafts after the worker seal-step fix (d8c767c)."}, {"area": "Images and Visual Studio preview", "result": "pass", "note": "Brand PNG and preview pass after worker fixes 4002487 and 7128023."}, {"area": "Source summaries", "result": "pass", "note": "Card queue tick runs every 10 minutes (5b9533e)."}, {"area": "Automatic jobs and recovery", "result": "pass", "note": "The tick re-sent 3 failed draft jobs; all completed."}, {"area": "Post now", "result": "pass", "note": "Published on the ReRev Labs page; provider status and link checked."}, {"area": "Approve to scheduler", "result": "partial", "note": "Server side works: scheduled on its slot with the image. The app needs the tab open about 30 s after Approve."}, {"area": "Cancel a scheduled post", "result": "partial", "note": "The provider post is removed, but the draft stays approved and the daily sweep schedules it again."}, {"area": "Welcome email", "result": "pass", "note": "Sent with video after fix b0af2f0 (owner email from the login). The Resend account email must equal the app login email; a mismatch gives Resend 403."}, {"area": "Newsletter intake (steps 16, 28)", "result": "pass", "note": "Two QuantHub emails became source cards within 5 minutes. First try failed: an old Knowledge Loom script in the same Gmail also watched loom-queue and took the email. Every install uses the same label names, so one Gmail account can run only one intake."}, {"area": "First 12 drafts (step 29)", "result": "partial", "note": "Started; owner accepted without waiting for the end. 9 jobs used only 3 seeds while 9 seeds were unused, so 2 drafts failed the novelty check. Seed picking needs a fix."}, {"area": "Install time", "result": "partial", "note": "Claude-run part: 28 min from preflight to live app. Keys sitting and owner clicks not measured. 20-30 min not proven."}]}
+  },
+  {
+   "id": "2026-09-30",
+   "date": "2026-09-30",
+   "title": "Setup wizard released",
+   "summary": "The setup wizard replaces the old Render guide. The app code is the same as the version before it.",
+   "upgrade_type": "none",
+   "changes": [
+    {
+     "kind": "Added",
+     "text": "Setup wizard with 19 steps"
+    },
+    {
+     "kind": "Changed",
+     "text": "Deploy target is GitHub Pages, not Render"
+    }
+   ],
+   "upgrade_steps": []
+  },
+  {
+   "id": "2026-09-02",
+   "date": "2026-09-02",
+   "title": "Daily jobs use your own project",
+   "summary": "The three daily and weekly jobs no longer point at the original project. They read the project address and key from your own database.",
+   "upgrade_type": "database",
+   "changes": [
+    {
+     "kind": "Fixed",
+     "text": "Daily jobs sent calls to the original project"
+    },
+    {
+     "kind": "Added",
+     "text": "fire_automation_endpoint function"
+    },
+    {
+     "kind": "Added",
+     "text": "project_url and project_anon_key settings in automation_config"
+    }
+   ],
+   "upgrade_steps": [
+    {
+     "title": "Get the new database changes",
+     "text": "Run these commands in your repo folder.",
+     "copy": "git pull\nnpx supabase link --project-ref {{supabase_project_ref}}\nnpx supabase db push"
+    },
+    {
+     "title": "Set your project address and key",
+     "text": "Open the SQL Editor in Supabase. Replace PASTE_YOUR_ANON_KEY with your anon public key from Project Settings, API.",
+     "copy": "update public.automation_config set value = '{{supabase_url}}' where key = 'project_url';\nupdate public.automation_config set value = 'PASTE_YOUR_ANON_KEY' where key = 'project_anon_key';"
+    }
+   ]
+  },
+  {
+   "id": "2026-06-13",
+   "date": "2026-06-13",
+   "title": "Daily auto-fire of schedules",
+   "summary": "Scheduled content now fires each day without a manual step. WARNING: installs from this version until 2026-09-02 send the daily call to the original project. Upgrade these installs first.",
+   "upgrade_type": "database",
+   "changes": [
+    {
+     "kind": "Added",
+     "text": "Daily job that fires due schedules"
+    },
+    {
+     "kind": "Added",
+     "text": "automation_config table with a secret for the job"
+    }
+   ],
+   "upgrade_steps": [
+    {
+     "title": "Deploy the function",
+     "text": "Run this command in your repo folder.",
+     "copy": "npx supabase functions deploy fire-due-schedules --project-ref {{supabase_project_ref}}"
+    }
+   ]
+  }
+ ]
+}
