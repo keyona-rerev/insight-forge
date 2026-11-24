@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.0";
 import { getPublisher } from "../_shared/publisher/index.ts";
 import { resolveForApproval, nextOccurrence, type Frequency } from "../_shared/schedule-resolver.ts";
-import { getDraftImageUrl } from "../_shared/get-draft-image-url.ts";
+import { getDraftMedia } from "../_shared/get-draft-media.ts";
 import { maxCharsFor, requiresMedia, platformLabel } from "../_shared/publisher/platform-rules.ts";
 
 // Hand an approved draft to the provider's scheduler at its slot time.
@@ -70,7 +70,7 @@ const scheduleDraft = async (
 ): Promise<Response> => {
     const { data: draft } = await supabase
       .from("drafts")
-      .select("id, user_id, body, approval_status, schedule_id, scheduled_for, external_post_id, platform")
+      .select("id, user_id, title, body, approval_status, schedule_id, scheduled_for, external_post_id, platform, format_id")
       .eq("id", draftId)
       .eq("user_id", userId)
       .single();
@@ -178,12 +178,26 @@ const scheduleDraft = async (
       );
     }
 
-    // Image lookup happens before the media-requirement check below, since
+    // Media lookup happens before the media-requirement check below, since
     // platforms that require media need to know NOW whether one is ready --
     // never fall back to a default/reused image (see platform-rules.ts and
     // the no-repeat/no-fallback rule for Instagram specifically).
-    const imageUrl = await getDraftImageUrl(supabase, draft.id);
-    if (requiresMedia(platform) && !imageUrl) {
+    //
+    // Carousel drafts (their format's render_kind='carousel') publish as a
+    // LinkedIn document post: the media is the assembled slide PDF. Without
+    // a ready PDF the draft parks in needs_attention -- it NEVER falls back
+    // to the single cover image or text-only, because that would silently
+    // publish something other than the reviewed carousel. The park message
+    // carries the marker retryHandoffAfterVisual matches so a visual that
+    // finishes later unblocks the handoff automatically.
+    const media = await getDraftMedia(supabase, draft);
+    if (media.renderKind === "carousel" && !media.documentUrl) {
+      return await needsAttention(
+        `This draft is a LinkedIn carousel and its slide PDF is not ready yet. Generate the carousel visual first -- it publishes as a swipeable document post and will never fall back to a single image or text-only.`,
+      );
+    }
+    const imageUrl = media.renderKind === "carousel" ? undefined : media.imageUrl;
+    if (requiresMedia(platform) && !imageUrl && !media.documentUrl) {
       return await needsAttention(
         `${label} requires an image and none is ready yet for this draft. Generate/approve the visual first -- this will never auto-substitute a fallback image.`,
       );
@@ -250,6 +264,8 @@ const scheduleDraft = async (
         scheduledFor: scheduledForFinal,
         timezone: resolved.timezone,
         imageUrl,
+        documentUrl: media.documentUrl,
+        documentTitle: (draft.title ?? "").trim() || undefined,
       });
       const { error: writeErr } = await supabase.from("drafts").update({
         external_post_id: result.externalPostId,

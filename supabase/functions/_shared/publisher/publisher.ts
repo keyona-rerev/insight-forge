@@ -32,6 +32,12 @@ export interface PublishInput {
   scheduledFor?: string; // ISO-8601 UTC instant from the resolver; omit when publishNow
   timezone?: string; // IANA zone the slot is expressed in
   imageUrl?: string; // public URL of the draft's generated visual, if ready
+  // LinkedIn carousel (document post): public URL of the draft's assembled
+  // slide PDF, plus the document title LinkedIn requires. A document post
+  // cannot also carry images, so a caller that passes documentUrl must NOT
+  // pass imageUrl; implementations give documentUrl precedence.
+  documentUrl?: string;
+  documentTitle?: string;
   // Immediate publish: the provider publishes synchronously inside the request
   // (Zernio: publishNow: true, returns platformPostUrl). Wins over scheduledFor.
   publishNow?: boolean;

@@ -33,16 +33,19 @@ serve(async (req) => {
     const { draftId } = await req.json().catch(() => ({}));
     if (!draftId || typeof draftId !== "string") return json({ error: "draftId is required" }, 400);
 
-    // Format platform is the fallback when the draft row has no platform.
+    // Format platform is the fallback when the draft row has no platform;
+    // the format's render_kind decides single-graphic vs carousel deck.
     const { data: draftFormat } = await supabase.from("drafts").select("format_id").eq("id", draftId).maybeSingle();
     let formatPlatform: string | null = null;
+    let renderKind: string | null = null;
     if (draftFormat?.format_id) {
-      const { data: fmt } = await supabase.from("formats").select("platform").eq("id", draftFormat.format_id).maybeSingle();
+      const { data: fmt } = await supabase.from("formats").select("platform, render_kind").eq("id", draftFormat.format_id).maybeSingle();
       formatPlatform = fmt?.platform ?? null;
+      renderKind = fmt?.render_kind === "carousel" ? "carousel" : null;
     }
 
     const r = await requestDraftVisual(makeDb(supabase), supabase, enqueueInteractiveJob, {
-      authUserId: user.id, draftId, formatPlatform,
+      authUserId: user.id, draftId, formatPlatform, renderKind,
     });
     return json(r.body, r.status);
   } catch (error) {

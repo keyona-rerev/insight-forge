@@ -35,6 +35,9 @@ export interface Db {
   getVisual(id: string): Promise<any | null>;
   updateVisualWhere(id: string, filter: Record<string, unknown>, fields: Record<string, unknown>): Promise<any | null>;
   uploadVisualPng(path: string, bytes: Uint8Array): Promise<{ error?: string; url?: string }>;
+  // The assembled carousel slide PDF (LinkedIn document-post media). Same
+  // public draft-visuals bucket as the PNGs - Zernio fetches it by URL.
+  uploadVisualPdf(path: string, bytes: Uint8Array): Promise<{ error?: string; url?: string }>;
   // Completion-retry decision inputs (visual-logic.ts): publish state for the
   // draft a visual belongs to, and automation_config secrets for the
   // server-to-server handoff retry.
@@ -157,7 +160,7 @@ export function validateOutput(output: unknown, allowedCardIds: Set<string>): st
 // ---------------------------------------------------------------------------
 export async function completeJob(db: Db, args: {
   jobId: string; completionToken: string; output: unknown; runUrl?: string;
-  now?: Date; noveltyWindowDays?: number; pngBase64?: string;
+  now?: Date; noveltyWindowDays?: number; pngBase64?: string; slidesPngBase64?: string[];
   mp4Base64?: string; gifBase64?: string;
 }): Promise<{ status: number; body: any }> {
   const now = args.now ?? new Date();
@@ -194,7 +197,7 @@ export async function completeJob(db: Db, args: {
   // (edge function or client) to read via claude-job-status.
   if (claimed.path === "interactive") {
     if ((snap as any)?.interactiveKind === "draft-visual") {
-      return await completeVisualJob(db, { jobId: args.jobId, job: claimed, output: args.output, pngBase64: args.pngBase64, now });
+      return await completeVisualJob(db, { jobId: args.jobId, job: claimed, output: args.output, pngBase64: args.pngBase64, slidesPngBase64: args.slidesPngBase64, now });
     }
     if ((snap as any)?.interactiveKind === WELCOME_KIND) {
       return await completeWelcomeJob(db, { jobId: args.jobId, job: claimed, output: args.output,

@@ -34,12 +34,25 @@ serve(async (req) => {
   if (png_snake !== undefined && png_camel !== undefined && png_snake !== png_camel)
     return json({ error: "png_base64 and pngBase64 disagree" }, 400);
   const png_base64: string | undefined = png_camel ?? png_snake;
+  // Carousel visual jobs carry one rendered PNG per slide (camelCase
+  // `slidesPngBase64`; snake_case `slides_png_base64` accepted, the two must
+  // agree when both are present). The per-slide strings and the slide count
+  // are fully validated downstream in completeVisualJob; here we only keep
+  // the wire shape sane. Flattened slides are small (opaque RGB text
+  // graphics), so a full deck stays well inside the 16MB body cap above.
+  const slides_snake = parsed.slides_png_base64;
+  const slides_camel = parsed.slidesPngBase64;
+  const slidesOk = (v: unknown) => v === undefined || (Array.isArray(v) && v.length <= 16 && v.every((s) => typeof s === "string"));
+  if (!slidesOk(slides_snake) || !slidesOk(slides_camel)) return json({ error: "slidesPngBase64 must be an array of strings" }, 400);
+  if (slides_snake !== undefined && slides_camel !== undefined && JSON.stringify(slides_snake) !== JSON.stringify(slides_camel))
+    return json({ error: "slides_png_base64 and slidesPngBase64 disagree" }, 400);
+  const slides_png_base64: string[] | undefined = slides_camel ?? slides_snake;
   if (!job_id || !completion_token || !output) return json({ error: "missing fields" }, 400);
   const db = makeDb(createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!));
   const mp4Base64 = typeof parsed.mp4Base64 === "string" ? parsed.mp4Base64 : undefined;
   const gifBase64 = typeof parsed.gifBase64 === "string" ? parsed.gifBase64 : undefined;
   const r = await completeJob(db, { jobId: job_id, completionToken: completion_token, output, runUrl: run_url,
-    pngBase64: png_base64, mp4Base64, gifBase64 });
+    pngBase64: png_base64, slidesPngBase64: slides_png_base64, mp4Base64, gifBase64 });
   // Same-day settle: apply already-completed relevance/summary results as jobs finish instead of
   // waiting for the next daily fire-due-schedules tick or a manual Score/Settle now. finalizeOpen
   // only applies or releases finished jobs — it never enqueues, never scores inline, never spends.

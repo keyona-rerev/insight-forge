@@ -144,6 +144,13 @@ export function makeDb(supabase: any): Db {
       const { data: pub } = supabase.storage.from("draft-visuals").getPublicUrl(path);
       return { url: pub.publicUrl };
     },
+    async uploadVisualPdf(path, bytes) {
+      const { error } = await supabase.storage.from("draft-visuals")
+        .upload(path, bytes, { contentType: "application/pdf", upsert: true });
+      if (error) return { error: error.message };
+      const { data: pub } = supabase.storage.from("draft-visuals").getPublicUrl(path);
+      return { url: pub.publicUrl };
+    },
     // Welcome email + video (welcome.ts)
     async setAutomationConfig(key, value) {
       await supabase.from("automation_config").upsert({ key, value }, { onConflict: "key" });

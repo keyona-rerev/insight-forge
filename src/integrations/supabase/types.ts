@@ -431,6 +431,9 @@ export type Database = {
           html_content: string
           id: string
           image_url: string | null
+          page_count: number | null
+          pdf_url: string | null
+          slide_image_urls: Json | null
           status: string | null
           updated_at: string | null
           user_id: string
@@ -445,6 +448,9 @@ export type Database = {
           html_content: string
           id?: string
           image_url?: string | null
+          page_count?: number | null
+          pdf_url?: string | null
+          slide_image_urls?: Json | null
           status?: string | null
           updated_at?: string | null
           user_id: string
@@ -459,6 +465,9 @@ export type Database = {
           html_content?: string
           id?: string
           image_url?: string | null
+          page_count?: number | null
+          pdf_url?: string | null
+          slide_image_urls?: Json | null
           status?: string | null
           updated_at?: string | null
           user_id?: string
@@ -811,6 +820,7 @@ export type Database = {
           min_words: number | null
           name: string
           platform: string
+          render_kind: string
           sort_order: number
           updated_at: string
           user_id: string
@@ -826,6 +836,7 @@ export type Database = {
           min_words?: number | null
           name: string
           platform?: string
+          render_kind?: string
           sort_order?: number
           updated_at?: string
           user_id: string
@@ -841,6 +852,7 @@ export type Database = {
           min_words?: number | null
           name?: string
           platform?: string
+          render_kind?: string
           sort_order?: number
           updated_at?: string
           user_id?: string

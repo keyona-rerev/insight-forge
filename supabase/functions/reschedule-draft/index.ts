@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.0";
 import { getPublisher } from "../_shared/publisher/index.ts";
-import { getDraftImageUrl } from "../_shared/get-draft-image-url.ts";
+import { getDraftMedia } from "../_shared/get-draft-media.ts";
 import { platformSpec, resolveDraftPlatform } from "../_shared/publisher/platform-config.ts";
 
 // Moves an already-scheduled draft to a new time. Invoked from the calendar
@@ -70,7 +70,7 @@ serve(async (req) => {
 
     const { data: draft, error: draftError } = await supabase
       .from("drafts")
-      .select("id, user_id, body, external_post_id, publish_status, scheduled_for, format_id")
+      .select("id, user_id, title, body, external_post_id, publish_status, scheduled_for, format_id")
       .eq("id", draftId)
       .eq("user_id", userId)
       .single();
@@ -179,8 +179,21 @@ serve(async (req) => {
     }
 
     try {
-      const imageUrl = await getDraftImageUrl(supabase, draft.id);
-      if (spec.requiresImage && !imageUrl) {
+      // Carousel drafts republish as a LinkedIn document post (the assembled
+      // slide PDF), never the single cover image and never text-only.
+      const media = await getDraftMedia(supabase, draft);
+      if (media.renderKind === "carousel" && !media.documentUrl) {
+        const msg = "This draft is a LinkedIn carousel and its slide PDF is not ready yet. Generate the carousel visual first -- it publishes as a swipeable document post and will never fall back to a single image or text-only.";
+        await supabase.from("drafts").update({
+          external_post_id: null,
+          scheduled_for: null,
+          publish_status: "needs_attention",
+          publish_error: msg,
+        }).eq("id", draft.id);
+        return json({ ok: false, status: "needs_attention", error: msg }, 200);
+      }
+      const imageUrl = media.renderKind === "carousel" ? undefined : media.imageUrl;
+      if (spec.requiresImage && !imageUrl && !media.documentUrl) {
         const msg = `${spec.label} requires an image before it can be posted. Generate a visual for this draft first.`;
         await supabase.from("drafts").update({
           external_post_id: null,
@@ -197,6 +210,8 @@ serve(async (req) => {
         scheduledFor: scheduledForIso,
         timezone,
         imageUrl,
+        documentUrl: media.documentUrl,
+        documentTitle: (draft.title ?? "").trim() || undefined,
       });
       await supabase.from("drafts").update({
         external_post_id: result.externalPostId,

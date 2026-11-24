@@ -5,8 +5,12 @@
 // executable and testable outside Deno/Supabase. Design record:
 // visual-subscription-architecture-v3 (reviewer blockers B1-B9).
 import type { Db } from "./job-logic.ts";
-import { buildVisualPrompt, visualSourceFingerprint } from "./visual-prompt.ts";
+import {
+  buildCarouselVisualPrompt, buildVisualPrompt, visualSourceFingerprint,
+  CAROUSEL_MAX_SLIDES, CAROUSEL_MIN_SLIDES,
+} from "./visual-prompt.ts";
 import { normalizeRowPlatform } from "./publisher/platform-config.ts";
+import { buildPdfFromSlides, extractSlideImage, type PdfSlideImage } from "./pdf-from-pngs.ts";
 
 export const VISUAL_MAX_HTML = 256 * 1024;
 export const VISUAL_MAX_PNG = 4 * 1024 * 1024;
@@ -126,7 +130,7 @@ export async function admitVisualPlaceholder(db: Db, args: {
 // which proves upload + update both happened.
 // ---------------------------------------------------------------------------
 export async function completeVisualJob(db: Db, args: {
-  jobId: string; job: any; output: unknown; pngBase64?: string; now: Date;
+  jobId: string; job: any; output: unknown; pngBase64?: string; slidesPngBase64?: string[]; now: Date;
 }): Promise<{ status: number; body: any }> {
   const { job, now } = args;
   const fail = async (error: string, status = 422) => {
@@ -141,8 +145,13 @@ export async function completeVisualJob(db: Db, args: {
   const o = args.output as any;
   if (!o || typeof o !== "object" || Array.isArray(o)) return fail("visual output not an object");
   if (typeof o.visual_type !== "string" || !o.visual_type.trim()) return fail("missing visual_type");
-  if (typeof o.html !== "string" || !o.html.trim()) return fail("missing html");
-  if (o.html.length > VISUAL_MAX_HTML) return fail("html oversize");
+  // Carousel jobs return {visual_type, slides} - per-slide html, validated
+  // in the carousel branch below. Standard jobs return {visual_type, html}.
+  const isCarouselJob = ctx.render_kind === "carousel";
+  if (!isCarouselJob) {
+    if (typeof o.html !== "string" || !o.html.trim()) return fail("missing html");
+    if (o.html.length > VISUAL_MAX_HTML) return fail("html oversize");
+  }
 
   if (ctx.preview) {
     // No asset persist AND NO PNG IN THE JOB ROW: a 4MB PNG is ~5.9MB of
@@ -175,13 +184,19 @@ export async function completeVisualJob(db: Db, args: {
   // 'error' (visible, deliberate regeneration required) instead of ready.
   // The recomputation uses the CURRENT draft row (including a mid-flight
   // platform change) and CURRENT profile config, never the ctx snapshot.
+  const isCarousel = isCarouselJob;
   if (ctx.source_hash) {
     const [draftRow, profileRow] = await Promise.all([
       db.getDraft(ctx.draft_id), db.getProfileVisualConfig(job.user_id),
     ]);
     if (draftRow) {
       const currentPlatform = normalizeRowPlatform(draftRow.platform) ?? normalizeRowPlatform(ctx.platform) ?? "linkedin";
-      const rebuilt = buildVisualPrompt(profileRow, currentPlatform);
+      // Rebuild with the SAME prompt family the job was admitted under -
+      // carousel and standard prompts differ by design, so mixing them here
+      // would mark every carousel render stale.
+      const rebuilt = isCarousel
+        ? buildCarouselVisualPrompt(profileRow, currentPlatform)
+        : buildVisualPrompt(profileRow, currentPlatform);
       const current = await visualSourceFingerprint(
         { title: draftRow.title ?? "", body: draftRow.body ?? "", seed_insight: draftRow.seed_insight ?? "" },
         rebuilt.systemPrompt, currentPlatform, rebuilt.canvasWidth, rebuilt.canvasHeight);
@@ -189,6 +204,11 @@ export async function completeVisualJob(db: Db, args: {
         return fail("render inputs changed during generation; placeholder flips terminal-error for deliberate regeneration");
     }
   }
+
+  if (isCarousel) {
+    return await completeCarouselVisual(db, args, ctx, visual, fail);
+  }
+
   if (!args.pngBase64) return fail("missing png");
   const v = await decodeAndValidatePng(args.pngBase64, ctx.canvas.w, ctx.canvas.h);
   if (!v.ok) return fail((v as { ok: false; reason: string }).reason);
@@ -216,6 +236,91 @@ export async function completeVisualJob(db: Db, args: {
 }
 
 // ---------------------------------------------------------------------------
+// CAROUSEL completion. The worker rendered one PNG per slide (same canvas,
+// same boundary); here each slide is fully decoded and validated exactly like
+// the single graphic, uploaded as its own public PNG (those are the pixels
+// Review shows before approval), and the validated bytes are assembled into
+// the PDF that publishes as the LinkedIn document post. Because the PDF
+// embeds each slide's own compressed scanlines (see pdf-from-pngs.ts), the
+// published pages are pixel-identical to the reviewed slide images.
+// ---------------------------------------------------------------------------
+// deno-lint-ignore no-explicit-any
+async function completeCarouselVisual(
+  db: Db,
+  args: { jobId: string; job: any; output: unknown; slidesPngBase64?: string[]; now: Date },
+  // deno-lint-ignore no-explicit-any
+  ctx: any,
+  // deno-lint-ignore no-explicit-any
+  visual: any,
+  fail: (error: string, status?: number) => Promise<{ status: number; body: any }>,
+): Promise<{ status: number; body: any }> {
+  const { job, now } = args;
+  const o = args.output as any;
+  if (o.visual_type !== "carousel") return fail("carousel job output visual_type must be \"carousel\"");
+  const keys = Object.keys(o).sort();
+  if (keys.join(",") !== "slides,visual_type") return fail("carousel output keys must be exactly visual_type + slides");
+  if (!Array.isArray(o.slides)) return fail("carousel slides missing");
+  if (o.slides.length < CAROUSEL_MIN_SLIDES || o.slides.length > CAROUSEL_MAX_SLIDES)
+    return fail(`carousel slide count ${o.slides.length} outside ${CAROUSEL_MIN_SLIDES}-${CAROUSEL_MAX_SLIDES}`);
+  for (const s of o.slides) {
+    if (typeof s !== "string" || s.trim().length < 20) return fail("carousel slide html missing or implausibly small");
+    if (s.length > VISUAL_MAX_HTML) return fail("carousel slide html oversize");
+  }
+  const slidesB64 = args.slidesPngBase64;
+  if (!Array.isArray(slidesB64) || slidesB64.length !== o.slides.length)
+    return fail("carousel rendered slide count does not match the slide html count");
+
+  // Decode + validate every slide against the claim canvas, then pull the
+  // embeddable image (8-bit RGB only - the worker flattens slides to opaque
+  // RGB before posting, and extractSlideImage enforces it).
+  const slideBytes: Uint8Array[] = [];
+  const slideImages: PdfSlideImage[] = [];
+  for (let i = 0; i < slidesB64.length; i++) {
+    const v = await decodeAndValidatePng(slidesB64[i], ctx.canvas.w, ctx.canvas.h);
+    if (!v.ok) return fail(`slide ${i + 1}: ${(v as { ok: false; reason: string }).reason}`);
+    try {
+      slideImages.push(extractSlideImage(v.bytes));
+    } catch (e) {
+      return fail(`slide ${i + 1}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    slideBytes.push(v.bytes);
+  }
+
+  // Upload the per-slide PNGs first: they are the review artifact, and the
+  // PDF is assembled from the same validated bytes.
+  const slideUrls: string[] = [];
+  for (let i = 0; i < slideBytes.length; i++) {
+    const up = await db.uploadVisualPng(`${job.user_id}/${ctx.visual_id}/slide_${i + 1}.png`, slideBytes[i]);
+    if (up.error) return fail(`storage: ${up.error}`, 500);
+    slideUrls.push(up.url ?? "");
+  }
+  const pdfBytes = buildPdfFromSlides(slideImages);
+  const pdfUp = await db.uploadVisualPdf(`${job.user_id}/${ctx.visual_id}/carousel.pdf`, pdfBytes);
+  if (pdfUp.error) return fail(`storage: ${pdfUp.error}`, 500);
+
+  const updated = await db.updateVisualWhere(ctx.visual_id, { status: "generating" },
+    { status: "ready", visual_type: "carousel",
+      html_content: o.slides.join("\n<!-- ===== slide ===== -->\n"),
+      // Cover slide as image_url so legacy single-image readers stay sane.
+      image_url: slideUrls[0] ?? null,
+      pdf_url: pdfUp.url ?? null,
+      page_count: slideUrls.length,
+      slide_image_urls: slideUrls,
+      canvas_width: ctx.canvas.w, canvas_height: ctx.canvas.h,
+      ...(ctx.source_hash ? { source_hash: ctx.source_hash } : {}) });
+  if (!updated) {
+    const cur = await db.getVisual(ctx.visual_id);
+    if (cur?.status !== "ready") return fail("visual placeholder state conflict", 409);
+  }
+  const done = await db.updateJobWhere(args.jobId, { status: "completing" },
+    { status: "completed", result: { text: pdfUp.url ?? null }, run_url: args.job.run_url ?? null,
+      completion_token_hash: null, updated_at: now.toISOString() });
+  if (!done) return { status: 409, body: { error: "job state changed during completion" } };
+  await retryHandoffAfterVisual(db, ctx.draft_id);
+  return { status: 200, body: { success: true } };
+}
+
+// ---------------------------------------------------------------------------
 // FAIL hook: flip the placeholder 'generating' -> 'error' exactly once
 // (guarded update by id + status). Called from failJob after the job
 // transition; a retried failure no-ops because status is no longer
@@ -230,12 +335,16 @@ export async function completeVisualJob(db: Db, args: {
 // the PRE-PROVIDER no-image park message matches - stale-claim parking
 // (possibly post-provider) is never auto-retried.
 const NO_IMAGE_PARK_MARKER = "requires an image and none is ready yet";
+// publish-to-zernio parks a carousel draft with this marker when its slide
+// PDF is not ready yet; a finished carousel visual unblocks it the same way.
+const CAROUSEL_PARK_MARKER = "slide PDF is not ready";
+const PARK_MARKERS = [NO_IMAGE_PARK_MARKER, CAROUSEL_PARK_MARKER];
 async function retryHandoffAfterVisual(db: Db, draftId: string): Promise<void> {
   try {
     const d = await db.getDraftPublishState(draftId);
     if (!d || d.approval_status !== "approved" || d.external_post_id) return;
     if (d.publish_status !== "needs_attention") return;
-    if (!String(d.publish_error ?? "").includes(NO_IMAGE_PARK_MARKER)) return;
+    if (!PARK_MARKERS.some((m) => String(d.publish_error ?? "").includes(m))) return;
     const cronSecret = await db.getAutomationConfig("cron_fire_secret");
     const base = Deno.env.get("SUPABASE_URL");
     if (!cronSecret || !base) return;

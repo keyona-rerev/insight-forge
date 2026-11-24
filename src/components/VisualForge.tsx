@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Download, Loader2, ImageIcon, RefreshCw } from "lucide-react";
 import { capturePngDataUrl } from "@/lib/visualCapture";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { VISUAL_GENERATION_AVAILABLE, VISUAL_UNAVAILABLE_NOTE } from "@/lib/visualAvailability";
 
 interface VisualForgeProps {
@@ -25,6 +26,9 @@ interface DraftVisual {
   created_at: string;
   canvas_width?: number | null;
   canvas_height?: number | null;
+  pdf_url?: string | null;
+  page_count?: number | null;
+  slide_image_urls?: string[] | null;
 }
 
 const DEFAULT_CANVAS_WIDTH = 1200;
@@ -41,6 +45,7 @@ const VISUAL_TYPE_LABELS: Record<string, string> = {
   before_after: "Before / After",
   logic_diagram: "Logic Diagram",
   transformation: "Transformation",
+  carousel: "Carousel",
   generating: "Generating...",
 };
 
@@ -229,6 +234,77 @@ export const VisualForge = ({ draftId, userId, platformLabel }: VisualForgeProps
 
   const canvasWidth = visual.canvas_width || DEFAULT_CANVAS_WIDTH;
   const canvasHeight = visual.canvas_height || DEFAULT_CANVAS_HEIGHT;
+  const slideUrls = Array.isArray(visual.slide_image_urls) ? visual.slide_image_urls : [];
+  const isCarousel = slideUrls.length > 0 && !!visual.pdf_url;
+
+  // Carousel visual: the reviewed slides ARE the published document pages
+  // (the PDF is assembled from these exact images), so the preview is a
+  // swipeable deck of the slide images themselves, never a re-render.
+  if (isCarousel) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Badge
+              style={{ backgroundColor: colors.navy, color: colors.yellow, border: "none" }}
+              className="text-xs uppercase tracking-wider"
+            >
+              Carousel
+            </Badge>
+            <span className="text-xs text-muted-foreground">
+              {platformLabel ? `${platformLabel} ` : ""}{slideUrls.length} slides · {canvasWidth}x{canvasHeight}
+            </span>
+          </div>
+          <div className="flex gap-2">
+            {VISUAL_GENERATION_AVAILABLE && (
+              <Button size="sm" variant="outline" onClick={handleRegenerate} disabled={regenerating}>
+                {regenerating ? (
+                  <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                ) : (
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                )}
+                Regenerate
+              </Button>
+            )}
+            <Button
+              size="sm"
+              onClick={() => window.open(visual.pdf_url!, "_blank")}
+              style={{ backgroundColor: colors.coral, color: "#ffffff" }}
+            >
+              <Download className="h-3 w-3 mr-1" />
+              View PDF
+            </Button>
+          </div>
+        </div>
+
+        <div className="px-10">
+          <Carousel className="w-full">
+            <CarouselContent>
+              {slideUrls.map((url, idx) => (
+                <CarouselItem key={idx}>
+                  <div className="rounded-lg overflow-hidden border">
+                    <img
+                      src={url}
+                      alt={`Carousel slide ${idx + 1} of ${slideUrls.length}`}
+                      className="w-full h-auto block"
+                    />
+                  </div>
+                  <p className="text-center text-xs text-muted-foreground mt-2">
+                    Slide {idx + 1} of {slideUrls.length}
+                  </p>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <CarouselPrevious />
+            <CarouselNext />
+          </Carousel>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          These exact slides publish to LinkedIn as a swipeable document post. Nothing posts without approval.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">

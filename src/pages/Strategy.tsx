@@ -37,6 +37,9 @@ interface FormatRow {
   max_words: number | null;
   writing_samples: string[];
   sort_order: number;
+  // 'standard' (default) or 'carousel' (LinkedIn document post: a multi-slide
+  // PDF, previewed slide-by-slide before approval).
+  render_kind: string;
   _isNew?: boolean;
 }
 
@@ -323,6 +326,7 @@ const Strategy = () => {
         id: f.id, key: f.key, name: f.name, platform: f.platform || "linkedin", definition: f.definition || "",
         min_words: f.min_words, max_words: f.max_words,
         writing_samples: toArray(f.writing_samples), sort_order: f.sort_order,
+        render_kind: (f as { render_kind?: string }).render_kind === "carousel" ? "carousel" : "standard",
       })));
 
       const { data: nat } = await supabase
@@ -437,7 +441,8 @@ const Strategy = () => {
     const id = `new_${Date.now()}`;
     setFormats((p) => [...p, {
       id, key: "", name: "", platform: "linkedin", definition: "",
-      min_words: null, max_words: null, writing_samples: [], sort_order: p.length, _isNew: true,
+      min_words: null, max_words: null, writing_samples: [], sort_order: p.length,
+      render_kind: "standard", _isNew: true,
     }]);
   };
   const addNature = () => {
@@ -565,6 +570,7 @@ const Strategy = () => {
           key: f.key || slugify(f.name), name: f.name, platform: f.platform || "linkedin", definition: f.definition || null,
           min_words: f.min_words, max_words: f.max_words,
           writing_samples: f.writing_samples, sort_order: i,
+          render_kind: f.render_kind === "carousel" && (f.platform || "linkedin") === "linkedin" ? "carousel" : "standard",
         };
         if (f._isNew) {
           const { error } = await supabase.from("formats").insert([{ ...payload, user_id: userId }]);
@@ -1406,6 +1412,20 @@ const Strategy = () => {
                       <Label className="text-xs">Writing samples (one per line)</Label>
                       <Textarea rows={3} className="font-mono text-xs" value={f.writing_samples.join("\n")} onChange={(e) => setFormat(i, { writing_samples: linesToArray(e.target.value) })} />
                     </div>
+                    {(f.platform || "linkedin") === "linkedin" && (
+                      <div className="flex items-start gap-3 rounded-md border p-3">
+                        <Switch
+                          checked={f.render_kind === "carousel"}
+                          onCheckedChange={(v) => setFormat(i, { render_kind: v ? "carousel" : "standard" })}
+                        />
+                        <div>
+                          <Label className="text-xs font-medium">LinkedIn carousel (PDF slides)</Label>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Drafts in this format get a multi-slide deck instead of a single graphic. You review the exact slides in the draft before approval, and the post publishes as a swipeable LinkedIn document. Off by default; turn on only for formats you want as carousels.
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
                 <Button variant="outline" className="w-full" onClick={addFormat}><Plus className="h-4 w-4 mr-2" />Add format</Button>
@@ -1419,6 +1439,12 @@ const Strategy = () => {
                     <span className="font-medium">{f.name || "Untitled format"}</span>
                     {" · "}
                     <Badge variant="outline" className="text-xs align-middle">{platformLabel(f.platform)}</Badge>
+                    {f.render_kind === "carousel" && (
+                      <>
+                        {" · "}
+                        <Badge variant="outline" className="text-xs align-middle">Carousel</Badge>
+                      </>
+                    )}
                     {" · "}
                     <span className="text-muted-foreground">{wordRangeText(f.min_words, f.max_words)}</span>
                   </li>

@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.0";
 import { getPublisher } from "../_shared/publisher/index.ts";
-import { getDraftImageUrl } from "../_shared/get-draft-image-url.ts";
+import { getDraftMedia } from "../_shared/get-draft-media.ts";
 import { maxCharsFor, requiresMedia, platformLabel } from "../_shared/publisher/platform-rules.ts";
 
 // Publishes an approved draft immediately through the provider's synchronous
@@ -61,7 +61,7 @@ serve(async (req) => {
     // Load the draft (scoped to the user).
     const { data: draft } = await supabase
       .from("drafts")
-      .select("id, user_id, body, approval_status, external_post_id, publish_status, platform")
+      .select("id, user_id, title, body, approval_status, external_post_id, publish_status, platform, format_id")
       .eq("id", draftId)
       .eq("user_id", userId)
       .single();
@@ -144,11 +144,20 @@ serve(async (req) => {
       );
     }
 
-    // Image lookup before the media-requirement check -- never fall back to
+    // Media lookup before the media-requirement check -- never fall back to
     // a default/reused image for a platform that requires one (see
     // platform-rules.ts and the no-repeat/no-fallback rule for Instagram).
-    const imageUrl = await getDraftImageUrl(supabase, draft.id);
-    if (requiresMedia(platform) && !imageUrl) {
+    // Carousel drafts publish as a LinkedIn document post (the assembled
+    // slide PDF) and NEVER fall back to the single cover image or text-only.
+    const media = await getDraftMedia(supabase, draft);
+    if (media.renderKind === "carousel" && !media.documentUrl) {
+      return json(
+        { error: "This draft is a LinkedIn carousel and its slide PDF is not ready yet. Generate the carousel visual first -- it publishes as a swipeable document post and will never fall back to a single image or text-only." },
+        400,
+      );
+    }
+    const imageUrl = media.renderKind === "carousel" ? undefined : media.imageUrl;
+    if (requiresMedia(platform) && !imageUrl && !media.documentUrl) {
       return json(
         { error: `${label} requires an image and none is ready yet for this draft. Generate/approve the visual first -- this will never auto-substitute a fallback image.` },
         400,
@@ -168,6 +177,8 @@ serve(async (req) => {
         publishNow: true,
         idempotencyKey: draft.id,
         imageUrl,
+        documentUrl: media.documentUrl,
+        documentTitle: (draft.title ?? "").trim() || undefined,
       });
 
       await supabase

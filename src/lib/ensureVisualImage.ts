@@ -9,6 +9,8 @@ interface DraftVisualRow {
   image_url?: string | null;
   canvas_width?: number | null;
   canvas_height?: number | null;
+  pdf_url?: string | null;
+  slide_image_urls?: string[] | null;
 }
 
 async function fetchLatestVisual(draftId: string): Promise<DraftVisualRow | null> {
@@ -61,6 +63,12 @@ export async function ensureVisualImageUploaded(
 
   if (!visual || visual.status !== "ready") return null;
   if (visual.image_url) return visual.image_url;
+
+  // Carousel visuals publish as the assembled slide PDF, not a single image.
+  // Their html_content is the slides concatenated (record only), so the
+  // client-side capture below would produce a garbage strip and could
+  // overwrite the cover image_url. Never capture a carousel row.
+  if (visual.pdf_url || (visual.slide_image_urls && visual.slide_image_urls.length)) return null;
 
   try {
     const dataUrl = visual.canvas_width && visual.canvas_height

@@ -132,20 +132,43 @@ export class ZernioPublisher implements Publisher {
   async publish(input: PublishInput): Promise<PublishResult> {
     // Immediate vs scheduled: Zernio asks for exactly one timing mode
     // (publishNow wins over scheduledFor; docs.zernio.com/posts/create-post).
+    //
+    // Media: a document (PDF) publishes to LinkedIn as the swipeable
+    // "carousel" document post and CANNOT be combined with images
+    // (docs.zernio.com/platforms/linkedin/posts + /media, verified
+    // 2026-11-20). documentUrl therefore wins over imageUrl here; callers
+    // resolving a carousel draft never pass both. LinkedIn requires a
+    // document title - platformSpecificData.documentTitle on the LinkedIn
+    // platform entry; Zernio falls back to the media item title, then the
+    // filename, but we always send the draft's title explicitly.
+    const mediaItems = input.documentUrl
+      ? [{ type: "document", url: input.documentUrl }]
+      : input.imageUrl
+        ? [{ type: "image", url: input.imageUrl }]
+        : undefined;
+    const platformEntry: Record<string, unknown> = {
+      platform: input.platform,
+      accountId: input.accountId,
+    };
+    if (input.documentUrl && input.platform === "linkedin") {
+      platformEntry.platformSpecificData = {
+        documentTitle: (input.documentTitle ?? "").trim().slice(0, 200) || "Carousel",
+      };
+    }
     const payload = input.publishNow
       ? {
           content: input.text,
-          platforms: [{ platform: input.platform, accountId: input.accountId }],
+          platforms: [platformEntry],
           publishNow: true,
-          mediaItems: input.imageUrl ? [{ type: "image", url: input.imageUrl }] : undefined,
+          mediaItems,
         }
       : {
           content: input.text,
-          platforms: [{ platform: input.platform, accountId: input.accountId }],
+          platforms: [platformEntry],
           scheduledFor: input.scheduledFor,
           timezone: input.timezone,
           status: "scheduled",
-          mediaItems: input.imageUrl ? [{ type: "image", url: input.imageUrl }] : undefined,
+          mediaItems,
         };
     const body = await this.#request(`/posts`, {
       method: "POST",

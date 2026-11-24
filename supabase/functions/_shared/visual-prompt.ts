@@ -284,6 +284,83 @@ export function buildVisualPrompt(profile: any, platform: string) {
   return { systemPrompt, canvasWidth, canvasHeight };
 }
 
+// ---------------------------------------------------------------------------
+// CAROUSEL (LinkedIn document post). A draft whose format is render_kind=
+// 'carousel' gets a multi-slide deck instead of the single graphic: the
+// worker renders each slide to a PNG and the server assembles those exact
+// pixels into the PDF that publishes. The deck canvas is LinkedIn's 4:5
+// portrait document size.
+//
+// The DEFAULT_DESIGN_RULES are deliberately NOT applied here - they were
+// written for the single graphic and explicitly forbid slide layouts. A saved
+// Visual Studio config still contributes its brand (colors, fonts, logo) and
+// the owner's own design rules.
+// ---------------------------------------------------------------------------
+export const CAROUSEL_CANVAS = { width: 1080, height: 1350 } as const;
+export const CAROUSEL_MIN_SLIDES = 3;
+export const CAROUSEL_MAX_SLIDES = 10;
+
+// deno-lint-ignore no-explicit-any
+export function buildCarouselVisualPrompt(profile: any, _platform: string) {
+  const canvasWidth = CAROUSEL_CANVAS.width;
+  const canvasHeight = CAROUSEL_CANVAS.height;
+  const rawConfig = profile?.visual_studio_config as string | null | undefined;
+  let brandBlock: string;
+  let rulesBlock = "";
+  let config: VisualConfig | null = null;
+  if (rawConfig && rawConfig.trim()) {
+    try { config = JSON.parse(rawConfig) as VisualConfig; } catch { config = null; }
+  }
+  if (config) {
+    brandBlock = `${buildVisualIdentityLine(profile?.business_name, profile?.business_description)}
+
+BRAND:
+- Colors: Background ${config.color_background} (base), Accent ${config.color_accent} (energy), Highlight ${config.color_highlight}, Sparing accent ${config.color_sparing_accent} (used sparingly)
+- Fonts: ${config.display_font} (display) + ${config.body_font} (body)
+- Logo: ${config.logo_url} — bottom-left, minimum ${config.logo_min_height}px height, visually prominent
+- Tone: direct, trustworthy, human.
+- ${config.color_background} base. Soft radial or linear gradients of ${config.color_highlight} or ${config.color_accent} as background texture. No harsh lines.`;
+    const designRules = Array.isArray(config.design_rules) ? config.design_rules : [];
+    const dos = designRules.filter((r) => r && r.tag === "do");
+    const avoids = designRules.filter((r) => r && r.tag === "avoid");
+    const lines: string[] = [];
+    if (dos.length) { lines.push("", "DO:"); for (const r of dos) lines.push(`- ${r.text}`); }
+    if (avoids.length) { lines.push("", "AVOID:"); for (const r of avoids) lines.push(`- ${r.text}`); }
+    if (lines.length) rulesBlock = `\n\nDESIGN RULES (read every rule before generating):${lines.join("\n")}`;
+  } else {
+    brandBlock = `You are a visual designer for this brand. The owner has not saved brand settings yet, so use the neutral starter identity below and nothing business-specific.
+
+BRAND:
+- Colors: Zinc #18181b (background base), Blue #3b82f6 (accent/energy), Purple #a855f7 (highlights), Amber #f59e0b (sparingly), White #ffffff
+- Fonts: a heavy grotesque sans-serif for display (700-800) + a neutral sans-serif for body (400-500), named in CSS with system-ui fallbacks
+- Logo: none configured - do not render any logo, wordmark, or brand name
+- Tone: direct, trustworthy, human.
+- Dark base. Soft radial or linear gradients as background texture. No harsh lines.`;
+  }
+
+  const systemPrompt = `${brandBlock}
+
+WHAT YOU ARE MAKING: a LinkedIn carousel - a swipeable PDF document post. Each slide is one page. The reader swipes left through the deck.
+
+DECK STRUCTURE (${CAROUSEL_MIN_SLIDES}-${CAROUSEL_MAX_SLIDES} slides):
+1. COVER: the post's core idea as a short bold declaration (10 words or fewer), large enough to read as a thumbnail. Not the post's opening line - the insight.
+2-${CAROUSEL_MAX_SLIDES - 1}. BODY SLIDES: one point per slide. A short heading plus at most 3 short lines of support. No paragraphs.
+LAST. CLOSER: the takeaway or call to action, with the logo if one is configured.
+
+OUTPUT RULES:
+- Return ONLY a JSON object, no markdown, no backticks
+- JSON must have exactly two keys: "visual_type" (the string "carousel") and "slides" (an array of ${CAROUSEL_MIN_SLIDES} to ${CAROUSEL_MAX_SLIDES} strings)
+- Each slides entry is a complete self-contained HTML document for one slide
+- Every slide: fixed width ${canvasWidth}px, height ${canvasHeight}px, body margin 0
+- Fonts load offline: no @import, no <link>, no url() and no external font or stylesheet references. Name fonts in CSS font-family with system-ui fallbacks
+- Inline CSS only, no external stylesheets, no <script>
+- Solid opaque background on every slide (the renderer flattens slides; transparency is rejected)
+- Every slide in the deck shares the same brand look - same background treatment, same fonts, same logo placement
+- Legibility: slide headings minimum 64px, body text minimum 28px, generous whitespace
+- No em-dashes${rulesBlock}`;
+  return { systemPrompt, canvasWidth, canvasHeight };
+}
+
 // Canonical fingerprint over ALL render inputs (draft content + system prompt
 // + platform + canvas). JSON.stringify canonicalizes template-literal
 // ambiguity; a style/config/canvas change invalidates exactly like a content
